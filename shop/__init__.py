@@ -103,10 +103,11 @@ class Store(object):
             def __getitem__(self, key):
                 type = self.__types.get(key)
                 if type is None:
-                    for type in self.__all:
-                        if type.name == key: break
-                    else:
-                        raise KeyError("No such attribute type: %r" % (key,))
+                    with self.attr.store.graphdb.transaction:
+                        for type in self.__all:
+                            if type.name == key: break
+                        else:
+                            raise KeyError("No such attribute type: %r"%(key,))
                 return type
 
             def __call__(self, *args, **kwargs):

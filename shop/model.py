@@ -21,6 +21,16 @@ class Product(object): # instance of Category
         # 2. Create the product as an instance of the category
         return Category(graphdb, node.PRODUCT.single.start)(graphdb, node)
 
+    def __str__(self):
+        return " ".join(attr(self) for attr in self.all_attributes()) or \
+            ("an unspecified %s" % (self.__class__,))
+    @classmethod
+    def all_attributes(cls):
+        return cls.get_all_attributes()
+
+    def __repr__(self):
+        return '<%s %s>' % (self.__class__, self)
+
     global product_node # define here to get the name mangling right
     def product_node(self):
         return self.__node
@@ -60,7 +70,7 @@ class Category(type): # type of Product
                         attributes[ attr['Name'] ] = attribute
 
                     # Get the parent category (the superclass of this category)
-                    parent = node.SUBCATEGORY.single
+                    parent = node.SUBCATEGORY.incoming.single
                     if parent is None:
                         parent = Product # The base Category type
                     else:
@@ -78,6 +88,15 @@ class Category(type): # type of Product
     def category_node(self):
         return self.__node
 
+    def get_all_attributes(self):
+        for name in dir(self):
+            value = getattr(self, name)
+            if isinstance(value, Attribute):
+                yield value
+
+    def __str__(self):
+        return self.name
+
     @neo4j.transactional(graphdb)
     @property
     def name(self):
@@ -90,6 +109,15 @@ class Category(type): # type of Product
                             self.__node.SUBCATEGORY.incoming.single.start)
         except:
             return self
+
+    def __getitem__(self, name):
+        for rel in self.__node.SUBCATEGORY.outgoing:
+            node = rel.end
+            if node['Name'] == name:
+                break
+        else:
+            raise KeyError(name)
+        return Category(self.graphdb, node)
 
     def new_subcategory(self, name, **attributes):
         """Create a new sub category"""
@@ -106,7 +134,7 @@ class Category(type): # type of Product
         with self.graphdb.transaction:
             node = self.graphdb.node()
             self.__node.PRODUCT(node)
-            product = self(graphdb, node)
+            product = self(self.graphdb, node)
             for key, value in values.items():
                 setattr(product, key, value)
             return product
@@ -162,9 +190,12 @@ class AttributeType(type): # type of Attribute
 
     @classmethod
     def create(AttributeType, graphdb, root, name, **attributes):
-        unit = attributes.get('Unit', "")
-        with graphdb.transaction:
+        unit = attributes.pop('Unit', "")
+        if attributes: raise TypeError(
+            "Unsupported keyword arguments: "+", ".join(
+                "'%s'" % (key,) for key in attributes))
 
+        with graphdb.transaction:
             node = graphdb.node(Name=name, Unit=unit)
             root.ATTRIBUTE_TYPE(node)
             
@@ -222,10 +253,13 @@ class Attribute(object): # instance of AttributeType
             return self.from_neo(product_node(obj).get(self.key, self.default))
 
     def __set__(self, obj, value):
-        node(obj)[self.key] = self.to_neo(value)
+        product_node(obj)[self.key] = self.to_neo(value)
 
     def __delete__(self, obj):
         del node(obj)[self.key]
+
+    def __call__(self, obj):
+        return "%s: %s%s" % (self.key, self.__get__(obj), self.get_unit())
 
     @classmethod
     def to_neo(Attribute, value): # Delegate to the AttributeType
@@ -233,4 +267,9 @@ class Attribute(object): # instance of AttributeType
 
     @classmethod
     def from_neo(Attribute, value): # Delegate to the AttributeType
-        return Attribugte.from_primitive_neo_value(value)
+        return Attribute.from_primitive_neo_value(value)
+
+    @classmethod
+    def get_unit(Attribute):
+        return Attribute.unit
+

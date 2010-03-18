@@ -1,14 +1,18 @@
 # -*- coding: utf-8 -*-
 
+from __future__ import with_statement
+
 import cmd
 import sys
+import re
 
 from shop import Store
+from shop.model import Attribute
 
 class CommandLineUi(cmd.Cmd):
     def __init__(self, store):
         cmd.Cmd.__init__(self)
-        self.__store = store
+        self.store = store
         self.prompt = "%s> " % (store.name,)
         self.category = store.root
 
@@ -29,10 +33,11 @@ class CommandLineUi(cmd.Cmd):
 
     def do_list(self, line):
         "list all available products"
-        for product in self.category:
-            print(product)
+        with self.store.graphdb.transaction:
+            for product in self.category:
+                print(product)
 
-    def do_cat(self, line):
+    def do_cat(self, line=None):
         if line:
             if line == '..':
                 self.category = self.category.parent
@@ -42,9 +47,10 @@ class CommandLineUi(cmd.Cmd):
                 except:
                     print("No such category %r" % (line,))
         else:
-            for category in self.category.categories:
-                print(category)
+            print("Current category: %s" % (self.category,))
+            self.columnize(map(str, self.category.categories))
 
+    _make_usage = "USAGE: make %s [<key>:<attr type> ...]"
     def do_make(self, line):
         command, args, line = self.parseline(line)
         if command:
@@ -52,12 +58,70 @@ class CommandLineUi(cmd.Cmd):
             if cmd is None:
                 print("Cannot make %s" % (command,))
             else:
-                cmd(args)
+                try:
+                    cmd(self._make_attributes(args))
+                except ValueError:
+                    print(self._make_usage % (command,))
+        else:
+            print(self._make_usage % ("category|product|type",))
 
-    def make_category(self, line):
-        pass
+    _make_pattern = re.compile(r'^\s*(\w+):((?:"(?:[^"]*(?:\\")?)*")|(?:\w+))')
+    def _make_attributes(self, line):
+        attributes = {}
 
-    def make_product(self, line):
+        while line:
+            # There is a bug in Jython's re module that prevents the use of '"'
+            match = self._make_pattern.match(line)
+            if match is None: raise ValueError
+
+            key, value = match.groups()
+            if value.startswith('"'): value = value[1:-1]
+            attributes[key] = value
+
+            line = line[len(match.group()):].strip()
+
+        return attributes
+
+    def _make_required(self, attributes, *keys):
+        for key in keys:
+            value = attributes.pop(key, None)
+            if value is not None: break
+        else:
+            raise KeyError
+        return value
+
+    def make_category(self, attributes):
+        try:
+            name = self._make_required(attributes, 'name', 'Name')
+        except KeyError:
+            print("ERROR: missing required attribute 'name'")
+        try:
+            attributes = dict([(key,Attribute(self.store.attribute.type[value]))
+                               for key, value in attributes.items()])
+        except KeyError:
+            print("ERROR: the attribute type %r is not defined.\n"
+                  "       Use 'make type' to define it." % (key,))
+        self.category = self.category.new_subcategory(name, **attributes)
+        self.do_cat()
+
+    def make_product(self, attributes):
+        try:
+            self.category.new_product(**attributes)
+        except:
+            import traceback; traceback.print_exc()
+
+    def make_type(self, attributes):
+        try:
+            name = self._make_required(attributes, 'name', 'Name')
+        except KeyError:
+            print("ERROR: missing required attribute 'name'")
+        try:
+            self.store.attribute.type(name, **attributes)
+        except TypeError:
+            _,val,_ = sys.exc_info()
+            print(val)
+
+    def do_types(self, line):
         pass
 
 def start(*args, **params):
