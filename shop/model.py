@@ -83,6 +83,14 @@ class Category(type): # type of Product
     def name(self):
         return self.__node['Name']
 
+    @property
+    def parent(self):
+        try:
+            return Category(self.graphdb,
+                            self.__node.SUBCATEGORY.incoming.single.start)
+        except:
+            return self
+
     def new_subcategory(self, name, **attributes):
         """Create a new sub category"""
         with self.__create_lock:
@@ -111,7 +119,7 @@ class Category(type): # type of Product
 
     @property
     def categories(self):
-        for rel in self.__node.SUBCATEGORY:
+        for rel in self.__node.SUBCATEGORY.outgoing:
             yield Category(self.graphdb, rel.end)
 
 

@@ -34,10 +34,13 @@ class CommandLineUi(cmd.Cmd):
 
     def do_cat(self, line):
         if line:
-            try:
-                pass
-            except:
-                pass
+            if line == '..':
+                self.category = self.category.parent
+            else:
+                try:
+                    self.category = self.category[line]
+                except:
+                    print("No such category %r" % (line,))
         else:
             for category in self.category.categories:
                 print(category)
