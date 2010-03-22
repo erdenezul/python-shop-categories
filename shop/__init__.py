@@ -125,7 +125,7 @@ class Store(object):
                 except KeyError:
                     try:
                         return self(name, *args, **kwargs)
-                    except KeyError: # crated concurrently
+                    except KeyError: # created concurrently
                         return self[name]
 
             @property

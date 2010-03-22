@@ -42,8 +42,10 @@ class Category(type): # type of Product
 
     graphdb = property(lambda self: self.__graphdb)
 
+    def __init__(self, *args): pass # do nothing
+
     def __new__(Category, graphdb, node):
-        """Lookup or create a Category representaton for a Node."""
+        """Lookup or create a Category representation for a Node."""
         # If the Category instance already exists
         self = Category.__categories.get(node.id)
         if self is None: # Otherwise create it
@@ -63,7 +65,7 @@ class Category(type): # type of Product
                     for attr in node.ATTRIBUTE:
                         # Get the Attribute type (instance of AttributeType)
                         Attribute = AttributeType( graphdb, attr.end )
-                        # Instanciate the attribute
+                        # Instantiate the attribute
                         attribute = Attribute( graphdb, attr['Name'],
                                                attr.get('DefaultValue') )
                         # Add the attribute to the category instance dict
@@ -140,7 +142,7 @@ class Category(type): # type of Product
             return product
 
     def __iter__(self):
-        """Iterating over a category yeilds all its products.
+        """Iterating over a category yields all its products.
         This includes products in subcategories of this category."""
         for prod in SubCategoryProducts(self.__node):
             yield Product(self.graphdb, prod)
@@ -170,7 +172,7 @@ class AttributeType(type): # type of Attribute
     __create_lock = threading.RLock() # reentrant lock
 
     def __new__(AttributeType, graphdb, node):
-        """Lookup or create a AttributeType representaton for a Node."""
+        """Lookup or create a AttributeType representation for a Node."""
         # If the AttributeType instance already exists
         self = AttributeType.__attribute_types.get(node.id)
         if self is None: # Otherwise create it
@@ -228,7 +230,7 @@ class AttributeType(type): # type of Attribute
 class Attribute(object): # instance of AttributeType
 
     def __new__(self, type, **kwargs):
-        required = kwargs.pop('required', 'default' in kwargs)
+        required = kwargs.pop('required', 'default' not in kwargs)
         default = kwargs.pop('default', None)
         if kwargs: raise TypeError("Unsupported keyword arguments: "+", ".join(
                 "'%s'" % (key,) for key in kwargs))

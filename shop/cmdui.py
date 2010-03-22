@@ -50,6 +50,43 @@ class CommandLineUi(cmd.Cmd):
             print("Current category: %s" % (self.category,))
             self.columnize(map(str, self.category.categories))
 
+    def do_sample(self, line):
+        """Create an example set of data."""
+        weight = self.store.attribute.type("Weight", Unit="Kg")
+        count = self.store.attribute.type("Count", Unit="pcs.")
+        length = self.store.attribute.type("Length", Unit='"')
+        frequency = self.store.attribute.type("Frequency", Unit="MHz")
+        name = self.store.attribute.type("Name", Unit="")
+        currency = self.store.attribute.type("Currency", Unit="USD")
+
+        electronics = self.store.root.new_subcategory(
+            "Electronics", Name=Attribute(name), Price=Attribute(currency),
+            Weight=Attribute(weight))
+
+        cameras = electronics.new_subcategory("Cameras")
+
+        computers = electronics.new_subcategory("Computers", **{
+                'Shipping weight':Attribute(weight),
+                'CPU frequency':Attribute(frequency)})
+
+        desktops = computers.new_subcategory("Desktops", **{
+                'Expansion slots':Attribute(count, default=4)})
+
+        laptops = computers.new_subcategory("Laptops", **{
+                'Display size':Attribute(length, default=15.0)})
+
+        desktops.new_product(Name="Dell Desktop",
+                             Weight=17.1,
+                             Price=890.0,
+                             **{'Shipping weight': 22.3,
+                                'CPU frequency': 3000.0})
+
+        laptops.new_product(Name="HP Laptop",
+                             Weight=3.5,
+                             Price=1200.0,
+                             **{'Shipping weight': 6.3,
+                                'CPU frequency': 2000.0})
+
     _make_usage = "USAGE: make %s [<key>:<attr type> ...]"
     def do_make(self, line):
         command, args, line = self.parseline(line)
