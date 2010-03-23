@@ -67,7 +67,8 @@ class Category(type): # type of Product
                         Attribute = AttributeType( graphdb, attr.end )
                         # Instantiate the attribute
                         attribute = Attribute( graphdb, attr['Name'],
-                                               attr.get('DefaultValue') )
+                                               attr.get('DefaultValue'),
+                                               attr.get('Required') )
                         # Add the attribute to the category instance dict
                         attributes[ attr['Name'] ] = attribute
 
@@ -138,7 +139,9 @@ class Category(type): # type of Product
             self.__node.PRODUCT(node)
             product = self(self.graphdb, node)
             for key, value in values.items():
-                setattr(product, key, value)
+                getattr(self, key).__set__(product, value)
+            for attr in self.get_all_attributes():
+                attr.verify(product)
             return product
 
     def __iter__(self):
@@ -226,6 +229,9 @@ class AttributeType(type): # type of Attribute
     def from_primitive_neo_value(self, value):
         return value
 
+    def verify_constraints(self, value):
+        pass
+
 
 class Attribute(object): # instance of AttributeType
 
@@ -240,13 +246,18 @@ class Attribute(object): # instance of AttributeType
                 attr['DefaultValue'] = type.to_primitive_neo_value(default)
         return AttributeFactory
 
-    def __init__(self, graphdb, key, default):
+    def __init__(self, graphdb, key, default, required):
         self.key = key
         self.default = default
+        self.required = required
+
+    def verify(self, obj):
+        if self.required:
+            self.verify_value(product_node(obj)[self.key])
 
     def __str__(self):
-        return '<Attribute type=%s Name=%r DefaultValue=%r>' % (
-            self.__class__.__name__, self.key, self.default)
+        return '<Attribute type=%s Name=%r DefaultValue=%r Required=%s>' % (
+            self.__class__.__name__, self.key, self.default, self.required)
 
     def __get__(self, obj, cls=None):
         if obj is None:
@@ -258,10 +269,15 @@ class Attribute(object): # instance of AttributeType
         product_node(obj)[self.key] = self.to_neo(value)
 
     def __delete__(self, obj):
-        del node(obj)[self.key]
+        del product_node(obj)[self.key]
 
     def __call__(self, obj):
         return "%s: %s%s" % (self.key, self.__get__(obj), self.get_unit())
+
+    @classmethod
+    def verify_value(Attribute, value):
+        value = Attribute.from_primitive_neo_value(value)
+        Attribute.verify_constraints(value)
 
     @classmethod
     def to_neo(Attribute, value): # Delegate to the AttributeType

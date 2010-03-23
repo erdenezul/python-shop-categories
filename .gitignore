@@ -2,4 +2,6 @@ neo4j
 *~
 *.pyc
 *.class
+*.dot
+*.png
 storedb
