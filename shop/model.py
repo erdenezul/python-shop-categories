@@ -1,4 +1,18 @@
 # -*- coding: utf-8 -*-
+"""
+Defines the domain model for a shop with categories and products.
+
+Each product in a category is of a type defined by the category. Therefore
+the Category type in the domain model is the metaclass of the Product type.
+Each category is an instance of the Category class. Each category object is
+also the class of the products that are contained in that category.
+The Product class is the base class for all product classes (the Category
+objects). While metaprogramming can easily get tricky, this is a perfect
+example of where it is actually useful, this allows us to store the metadata
+of the domain in the database with the actual data. The metadata here being
+the definitions of the categories, with the attribute constraints the
+categories carry, and the data being the actual products in the categories.
+"""
 
 from __future__ import with_statement
 

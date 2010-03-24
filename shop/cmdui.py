@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+This module defines a command line interface for working with this shop model.
+"""
 
 from __future__ import with_statement
 
@@ -16,11 +19,17 @@ class CommandLineUi(cmd.Cmd):
         self.prompt = "%s> " % (store.name,)
         self.category = store.root
 
+    def help_help(self):
+        print("""With no arguments help lists all available commands,
+If a command is given as an argument the help for that command is displayed.""")
+
     def do_EOF(self, line):
+        "Exit the application on end of file."
         print("  ") # Cover up the ^D char
         self.do_exit()
 
     def do_exit(self, line=None):
+        "Exit the application."
         print("bye.")
         sys.exit()
 
@@ -32,12 +41,17 @@ class CommandLineUi(cmd.Cmd):
         print("unknown command: %s" % command)
 
     def do_list(self, line):
-        "list all available products"
+        "list all available products in the current category"
         with self.store.graphdb.transaction:
             for product in self.category:
                 print(product)
 
     def do_cat(self, line=None):
+        """Change the current category and list all subcategories.
+        The parameter to this command is the name of the subcategory
+        to change to, .. changes to the parent category.
+        If no parameter is given cat only lists the subcategories.
+        """
         if line:
             if line == '..':
                 self.category = self.category.parent
@@ -87,7 +101,7 @@ class CommandLineUi(cmd.Cmd):
                              **{'Shipping weight': 6.3,
                                 'CPU frequency': 2000.0})
 
-    _make_usage = "USAGE: make %s [<key>:<attr type> ...]"
+    _make_usage = "USAGE: make %s [<key>:<value> ...]"
     def do_make(self, line):
         command, args, line = self.parseline(line)
         if command:
@@ -100,7 +114,14 @@ class CommandLineUi(cmd.Cmd):
                 except ValueError:
                     print(self._make_usage % (command,))
         else:
-            print(self._make_usage % ("category|product|type",))
+            print(self._make_usage % ("|".join(self._makers),))
+
+    def help_make(self):
+        print(self._make_usage % ("|".join(self._makers),))
+        print("")
+        for maker in self._makers:
+            print("make %s:" % (maker,))
+            print("    " + getattr(self, 'make_'+maker).__doc__)
 
     _make_pattern = re.compile(r'^\s*(\w+):((?:"(?:[^"]*(?:\\")?)*")|(?:\w+))')
     def _make_attributes(self, line):
@@ -128,6 +149,11 @@ class CommandLineUi(cmd.Cmd):
         return value
 
     def make_category(self, attributes):
+        """Creates a new category.
+        A 'Name' parameter must be specified for the category.
+        The rest of the parameters are names and types of the attributes of
+        the products in the category.
+        """
         try:
             name = self._make_required(attributes, 'name', 'Name')
         except KeyError:
@@ -142,12 +168,18 @@ class CommandLineUi(cmd.Cmd):
         self.do_cat()
 
     def make_product(self, attributes):
+        """Creates a new product.
+        The supplied key value pairs are the attribute values for the product.
+        """
         try:
             self.category.new_product(**attributes)
         except:
             import traceback; traceback.print_exc()
 
     def make_type(self, attributes):
+        """Creates a new attribute type.
+        A 'Name' parameter must be specified for the attribute type.
+        """
         try:
             name = self._make_required(attributes, 'name', 'Name')
         except KeyError:
@@ -158,7 +190,10 @@ class CommandLineUi(cmd.Cmd):
             _,val,_ = sys.exc_info()
             print(val)
 
+    _makers = tuple(name[5:] for name in dir() if name.startswith('make_'))
+
     def do_types(self, line):
+        "List all available attribute types."
         pass
 
 def start(*args, **params):
