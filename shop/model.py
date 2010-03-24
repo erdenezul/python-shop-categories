@@ -207,6 +207,9 @@ class AttributeType(type): # type of Attribute
 
         return self
 
+    def __str__(self):
+        return self.__name__
+
     @classmethod
     def create(AttributeType, graphdb, root, name, **attributes):
         unit = attributes.pop('Unit', "")

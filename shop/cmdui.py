@@ -57,49 +57,52 @@ If a command is given as an argument the help for that command is displayed.""")
                 self.category = self.category.parent
             else:
                 try:
-                    self.category = self.category[line]
+                    with self.store.graphdb.transaction:
+                        self.category = self.category[line]
                 except:
                     print("No such category %r" % (line,))
         else:
             print("Current category: %s" % (self.category,))
-            self.columnize(map(str, self.category.categories))
+            with self.store.graphdb.transaction:
+                self.columnize(map(str, self.category.categories))
 
     def do_sample(self, line):
         """Create an example set of data."""
-        weight = self.store.attribute.type("Weight", Unit="Kg")
-        count = self.store.attribute.type("Count", Unit="pcs.")
-        length = self.store.attribute.type("Length", Unit='"')
-        frequency = self.store.attribute.type("Frequency", Unit="MHz")
-        name = self.store.attribute.type("Name", Unit="")
-        currency = self.store.attribute.type("Currency", Unit="USD")
-
-        electronics = self.store.root.new_subcategory(
-            "Electronics", Name=Attribute(name), Price=Attribute(currency),
-            Weight=Attribute(weight))
-
-        cameras = electronics.new_subcategory("Cameras")
-
-        computers = electronics.new_subcategory("Computers", **{
-                'Shipping weight':Attribute(weight),
-                'CPU frequency':Attribute(frequency)})
-
-        desktops = computers.new_subcategory("Desktops", **{
-                'Expansion slots':Attribute(count, default=4)})
-
-        laptops = computers.new_subcategory("Laptops", **{
-                'Display size':Attribute(length, default=15.0)})
-
-        desktops.new_product(Name="Dell Desktop",
-                             Weight=17.1,
-                             Price=890.0,
-                             **{'Shipping weight': 22.3,
-                                'CPU frequency': 3000.0})
-
-        laptops.new_product(Name="HP Laptop",
-                             Weight=3.5,
-                             Price=1200.0,
-                             **{'Shipping weight': 6.3,
-                                'CPU frequency': 2000.0})
+        with self.store.graphdb.transaction:
+            weight = self.store.attribute.type("Weight", Unit="Kg")
+            count = self.store.attribute.type("Count", Unit="pcs.")
+            length = self.store.attribute.type("Length", Unit='"')
+            frequency = self.store.attribute.type("Frequency", Unit="MHz")
+            name = self.store.attribute.type("Name", Unit="")
+            currency = self.store.attribute.type("Currency", Unit="USD")
+            
+            electronics = self.store.root.new_subcategory(
+                "Electronics", Name=Attribute(name), Price=Attribute(currency),
+                Weight=Attribute(weight))
+            
+            cameras = electronics.new_subcategory("Cameras")
+            
+            computers = electronics.new_subcategory("Computers", **{
+                    'Shipping weight':Attribute(weight),
+                    'CPU frequency':Attribute(frequency)})
+            
+            desktops = computers.new_subcategory("Desktops", **{
+                    'Expansion slots':Attribute(count, default=4)})
+            
+            laptops = computers.new_subcategory("Laptops", **{
+                    'Display size':Attribute(length, default=15.0)})
+            
+            desktops.new_product(Name="Dell Desktop",
+                                 Weight=17.1,
+                                 Price=890.0,
+                                 **{'Shipping weight': 22.3,
+                                    'CPU frequency': 3000.0})
+            
+            laptops.new_product(Name="HP Laptop",
+                                 Weight=3.5,
+                                 Price=1200.0,
+                                 **{'Shipping weight': 6.3,
+                                    'CPU frequency': 2000.0})
 
     _make_usage = "USAGE: make %s [<key>:<value> ...]"
     def do_make(self, line):
@@ -194,7 +197,8 @@ If a command is given as an argument the help for that command is displayed.""")
 
     def do_types(self, line):
         "List all available attribute types."
-        pass
+        with self.store.graphdb.transaction:
+            self.columnize(map(str, self.store.attribute.type))
 
 def start(*args, **params):
     ui = CommandLineUi( Store(params['store']) )

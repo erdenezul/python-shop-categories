@@ -104,7 +104,7 @@ class Store(object):
                 type = self.__types.get(key)
                 if type is None:
                     with self.attr.store.graphdb.transaction:
-                        for type in self.__all:
+                        for type in self:
                             if type.name == key: break
                         else:
                             raise KeyError("No such attribute type: %r"%(key,))
@@ -138,8 +138,7 @@ class Store(object):
                     self.store.__types = types = {}
                 return types
 
-            @property
-            def __all(self):
+            def __iter__(self):
                 graphdb = self.store.graphdb
                 for rel in self.__node.ATTRIBUTE_TYPE:
                     type = model.AttributeType(graphdb, rel.end)
